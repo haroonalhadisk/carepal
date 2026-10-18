@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CarePal — Always here.</title>
+  <meta name="description" content="A bedside companion for ageing parents. It talks, it listens, and a contactless radar keeps watch over sleep and breathing." />
+  <meta name="theme-color" content="#F8F7F4" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600&family=Inter:wght@400;500&family=Ubuntu+Sans+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/carepal-logo.png" />
+</head>
+<body>
+  <!-- layer 0: things the device stands in front of -->
+  <div class="backdrop" aria-hidden="true">
+    <div class="floor"></div>
+    <div class="hairline" id="hairline"><i></i><i></i></div>
+  </div>
+
+  <canvas id="gl" aria-hidden="true"></canvas>
+
+  <!-- layer 2: 3D-anchored labels -->
+  <div class="anchors" id="anchors" aria-hidden="true"></div>
+
+  <header class="nav" id="nav">
+    <a class="logo" href="#top" aria-label="CarePal home">carepal<span>.</span></a>
+    <nav class="nav-links">
+      <a href="#device">Device</a>
+      <a href="#listens">How it listens</a>
+      <a href="#radar">Radar</a>
+      <a href="#circle">Care circle</a>
+      <a href="#hospitals">Hospitals</a>
+    </nav>
+    <a class="btn" href="#pilot">Join the pilot</a>
+  </header>
+
+  <main id="story">
+    <!-- 01 Stage -->
+    <section class="scene s-hero" id="top" data-len="1.6">
+      <div class="pin">
+        <p class="kicker hero-kicker">CarePal <b>·</b> Model 01 <b>·</b> Bedside companion</p>
+        <h1 class="hero-word" aria-label="Always here.">
+          <span class="hw-l">Always</span><span class="hw-r">here.</span>
+        </h1>
+        <div class="hero-foot">
+          <div class="hero-lede">
+            <p>A bedside companion for ageing parents. It talks, it listens, and a contactless radar keeps watch over sleep and breathing.</p>
+            <a class="link" href="#pilot">Join the Karnataka pilot <span>→</span></a>
+          </div>
+          <div class="scroll-cue"><span>Scroll — open it up</span><i></i></div>
+          <dl class="readout">
+            <div><dt>Breathing</dt><dd><span data-live="breath">15</span> /min</dd></div>
+            <div><dt>Slept</dt><dd>6h 04m</dd></div>
+            <div><dt>Morning meds</dt><dd>2 of 2 taken</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 Night -->
+    <section class="scene s-night" id="device" data-len="2">
+      <div class="pin">
+        <div class="copy copy-left">
+          <p class="kicker"><span class="clock" id="clock">02:58</span> · Bengaluru</p>
+          <h2>The hours no one<br/>is watching.</h2>
+          <p class="body">Priya lives four hours away. At 2:58 her mother’s breathing turns restless. CarePal notices from across the room — nothing on her wrist, nothing to charge, nothing she has to remember — and keeps it for the morning.</p>
+          <ul class="night-log" aria-label="Overnight log">
+            <li><time>23:41</time>Asleep</li>
+            <li><time>02:58</time>Restless · breathing 19/min</li>
+            <li><time>03:20</time>Settled · 15/min</li>
+            <li><time>06:45</time>Awake · 6h 04m total</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 Conversation -->
+    <section class="scene s-talk" id="listens" data-len="3.2">
+      <div class="pin">
+        <div class="copy copy-left talk-copy">
+          <p class="kicker">7:10 a.m. · Mary, 78</p>
+          <h2>One conversation.<br/>Two layers.</h2>
+        </div>
+        <div class="talk-layers">
+          <p class="talk-line" id="talkLine"></p>
+          <p class="talk-tele" id="talkTele"></p>
+          <ol class="talk-rail" id="talkRail"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 Exploded -->
+    <section class="scene s-open" data-len="2.4">
+      <div class="pin">
+        <div class="copy copy-left open-copy">
+          <p class="kicker">Under the shell</p>
+          <h2>Three systems.<br/>One quiet<br/>object.</h2>
+          <p class="body">A radar that needs nothing worn. A voice that needs nothing pressed. A hub that needs nothing typed. One AI reads all three together.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 Radar -->
+    <section class="scene s-radar" id="radar" data-len="2.4">
+      <div class="pin">
+        <div class="copy copy-left">
+          <p class="kicker">Contactless radar</p>
+          <h2>It reads breathing<br/>through the air.</h2>
+          <p class="body">Breathing rate, sleep and falls, measured from across the room. Then the readings are read together — a faster heart, less movement and a tired voice raise a flag days before they become a crisis.</p>
+        </div>
+        <div class="traces">
+          <figure>
+            <figcaption><span>Breathing</span><b><span data-live="breath">15</span>/min</b></figcaption>
+            <svg viewBox="0 0 400 80" preserveAspectRatio="none"><path id="breathPath" d="" /></svg>
+          </figure>
+          <figure>
+            <figcaption><span>Sleep · last night</span><b>6h 04m</b></figcaption>
+            <svg viewBox="0 0 400 80" preserveAspectRatio="none" id="sleepSvg"></svg>
+          </figure>
+          <figure>
+            <figcaption><span>Synced devices</span><b>75+</b></figcaption>
+            <p class="brands">Omron · Abbott · Accu-Chek · Beurer · Dr. Trust · iHealth</p>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 Care circle -->
+    <section class="scene s-circle" id="circle" data-len="2.6">
+      <div class="pin">
+        <div class="copy copy-center circle-copy">
+          <p class="kicker">The care circle</p>
+          <h2>Everyone sees what they need.</h2>
+        </div>
+        <svg class="threads" id="threads" aria-hidden="true"></svg>
+        <div class="people">
+          <article class="person p-priya" data-node="priya">
+            <h3>Priya <small>Daughter</small></h3>
+            <p>“Up and about, ate lightly.” A daily note, and a call if something changes.</p>
+          </article>
+          <article class="person p-doc" data-node="doc">
+            <h3>Dr. Rao <small>Physician</small></h3>
+            <p>Symptoms in her words, vitals trends, medication adherence.</p>
+          </article>
+          <article class="person p-nurse" data-node="nurse">
+            <h3>Care team <small>Hospital · care home</small></h3>
+            <p>Falls, missed doses and early-warning flags, the moment they happen.</p>
+          </article>
+          <article class="person p-private" data-node="private">
+            <h3>Never leaves <small>Stays with Mary</small></h3>
+            <p>What she says when she is lonely. Private conversations stay private.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 Rest -->
+    <section class="scene s-rest" id="hospitals" data-len="1.6">
+      <div class="pin">
+        <div class="copy copy-left">
+          <p class="kicker">For hospitals and care homes</p>
+          <h2>The hospital<br/>follows them home.</h2>
+          <p class="body">Discharge is when recoveries fail. CarePal carries the ward’s structure into the bedroom — the same checks, the same records, without asking anything of the patient.</p>
+        </div>
+        <dl class="outcomes">
+          <div><dt><span data-count="20">0</span>%</dt><dd>targeted cut in 30-day readmissions<small>Pilot target</small></dd></div>
+          <div><dt><span data-count="30">0</span>%</dt><dd>fewer avoidable clinic and hospital trips<small>Pilot target</small></dd></div>
+          <div><dt><span data-count="75">0</span>+</dt><dd>medical devices that sync on their own<small>Live today</small></dd></div>
+          <div><dt><span data-count="24">0</span>/7</dt><dd>companionship and monitoring<small>By design</small></dd></div>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <section class="pilot" id="pilot">
+    <p class="kicker">1st Runner-Up · Ekathon 2026 · India AI Impact Summit</p>
+    <h2>Bring the hospital’s<br/>vigilance home.</h2>
+    <p class="body">CarePal is entering pilot deployments across Karnataka, with families, hospitals and care homes. Be part of the first circle.</p>
+    <div class="pilot-cta">
+      <a class="btn btn-lg" href="mailto:contact@hellocarepal.com?subject=CarePal%20pilot%20%E2%80%94%20family">I’m caring for a parent</a>
+      <a class="btn btn-lg btn-ghost" href="mailto:contact@hellocarepal.com?subject=CarePal%20pilot%20%E2%80%94%20hospital%20or%20care%20home">I’m a hospital or care home</a>
+    </div>
+    <footer>
+      <span>IndusIP Technologies Pvt. Ltd. · Bengaluru, Karnataka</span>
+      <a href="mailto:contact@hellocarepal.com">contact@hellocarepal.com</a>
+    </footer>
+  </section>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
