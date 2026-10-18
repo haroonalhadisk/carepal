@@ -133,6 +133,7 @@ h2 {
 .talk-copy h2 { font-size: clamp(36px, 3.6vw, 60px); margin-bottom: 0; }
 .talk-layers { position: absolute; left: var(--gutter); top: 42vh; width: min(520px, 38vw); }
 .open-copy { max-width: 30vw; }
+.s-night .copy-left { max-width: 48vw; }
 .talk-line {
   font: 500 clamp(22px, 2.1vw, 34px)/1.22 var(--display); letter-spacing: -0.02em;
   min-height: 5.2em;
@@ -218,7 +219,7 @@ h2 {
   .nav { padding: 18px var(--gutter); }
   .hero-kicker { top: 12vh; font-size: 11px; }
   .hero-kicker b { margin: 0 0.5em; }
-  .hero-word { flex-direction: column; align-items: stretch; top: 46%; font-size: 27vw; line-height: 0.82; }
+  .hero-word { flex-direction: column; align-items: stretch; top: 29%; font-size: 27vw; line-height: 0.82; }
   .hero-word .hw-r { text-align: right; }
   .hero-foot { grid-template-columns: 1fr; gap: 18px; bottom: 3vh; }
   .scroll-cue, .readout { display: none; }
@@ -227,7 +228,7 @@ h2 {
   h2 { font-size: 40px; margin: 14px 0 14px; }
   .body { font-size: 15px; }
   .traces, .outcomes, .talk-layers { left: var(--gutter); right: var(--gutter); width: auto; top: auto; bottom: 4vh; transform: none; }
-  .night-log { font-size: 12px; margin-top: 18px; }
+  .night-log { display: none; }
   .open-copy .body { display: none; }
   .talk-copy { top: 10vh; }
   .talk-copy h2 { font-size: 30px; }

@@ -118,11 +118,12 @@ video.load();
 
 /* ------------------------------------------------------------------ state */
 // Everything the scroll story animates lives here; the render loop reads it.
-const S = {
-  x: 0, rotY: -0.42, spin: 1, dist: 1, camY: 1.05, lookY: 0.88,
+const HERO = () => ({
+  x: 0, rotY: -0.42, spin: 1, dist: isMobile() ? 1.19 : 1, camY: 1.05, lookY: isMobile() ? 1.4 : 0.88,
   explode: 0, night: 0, radar: 0, chat: 0, circle: 0, hot: 1, tags: 0,
-  hairline: 1, teal: 0, intro: 0,
-};
+  hairline: 1, teal: 0,
+});
+const S = { ...HERO(), intro: 0 };
 
 const vh = () => innerHeight;
 const baseDist = () => (isMobile() ? 8.4 : 6.3);
@@ -181,7 +182,7 @@ const openTags = [
   { part: 'hub', el: tag({ no: '05', title: 'Device hub', sub: '75+ medical devices over Bluetooth and Wi-Fi.' }) },
 ].map((t) => ({ ...t, key: 'tags' }));
 
-function placeTag(t, pos, k, edge = 0) {
+function placeTag(t, pos, k, edge = 0, y) {
   const el = t.el;
   if (k <= 0.001 || !pos) { el.style.opacity = 0; return; }
   const p = toScreen(pos);
@@ -189,7 +190,19 @@ function placeTag(t, pos, k, edge = 0) {
   const left = el.classList.contains('left');
   const x = left ? p.x - w - edge : p.x + edge;
   el.style.opacity = k;
-  el.style.transform = `translate3d(${x}px, ${p.y - el.offsetHeight / 2}px, 0)`;
+  el.style.transform = `translate3d(${x}px, ${(y ?? p.y) - el.offsetHeight / 2}px, 0)`;
+}
+// exploded labels: keep them in order down the stack with a minimum gap
+function placeOpenTags(k) {
+  const gap = isMobile() ? 34 : 70;
+  const list = openTags.map((o) => ({ o, pos: k > 0 ? partCenter(o.part) : null }));
+  let prev = -Infinity;
+  list.forEach((l) => {
+    if (!l.pos) return;
+    l.y = Math.max(toScreen(l.pos).y, prev + gap);
+    prev = l.y;
+  });
+  list.forEach((l) => placeTag(l.o, l.pos, k, isMobile() ? 20 : 120, l.y));
 }
 addEventListener('resize', () => [...hotTags, ...openTags].forEach((t) => (t.w = 0)));
 
@@ -293,8 +306,11 @@ function buildStory() {
   master?.scrollTrigger?.kill();
   master?.kill();
   layoutScenes();
+  Object.assign(S, HERO()); // timeline start values are recorded from the hero pose
 
   const H = vh();
+  const mob = isMobile();
+  const m = (desk, phone) => (mob ? phone : desk);
   const top = (i) => scenes[i].offsetTop; // px, == scrollY where scene i pins
   const len = (i) => scenes[i].offsetHeight;
   const side = isMobile() ? 0 : 0.42; // device x when copy sits on the left
@@ -308,28 +324,28 @@ function buildStory() {
   tl.to(S, { hairline: 0, duration: H * 0.6, ease: 'none' }, len(0) - H * 0.6);
 
   // 02 night
-  into(1, { night: 1, x: side, rotY: -0.7, spin: 0, dist: 1.02, camY: 1.15 });
+  into(1, { night: 1, x: side, rotY: -0.7, spin: 0, dist: m(1.02, 1.7), camY: 1.15, lookY: m(0.88, 2.5) });
 
   // 03 turn + conversation
-  into(2, { night: 0, rotY: Math.PI * 2, dist: isMobile() ? 0.62 : 0.8, lookY: isMobile() ? 0.62 : 0.92, camY: 1.0, x: isMobile() ? 0 : 0.4 }, H * 1.1);
+  into(2, { night: 0, rotY: Math.PI * 2, dist: m(0.8, 1.22), lookY: m(0.92, 0.75), camY: 1.0, x: m(0.4, 0) }, H * 1.1);
   tl.to(S, { chat: SCRIPT.length - 0.01, duration: len(2) - H * 0.9, ease: 'none' }, top(2) - H * 0.1);
 
   // 04 open it up
   tl.to(S, { chat: 0, duration: H * 0.05, ease: 'none' }, top(3) - H * 0.35);
-  into(3, { x: isMobile() ? 0 : 0.14, rotY: Math.PI * 2 - 0.5, dist: isMobile() ? 1.45 : 1.32, lookY: 1.3, camY: 1.6 });
+  into(3, { x: m(0.14, -0.4), rotY: Math.PI * 2 - 0.5, dist: m(1.45, 1.75), lookY: m(1.25, 1.55), camY: 1.6 });
   tl.to(S, { explode: 1, duration: H * 0.9, ease: 'power3.inOut' }, top(3) - H * 0.3);
   tl.to(S, { tags: 1, duration: H * 0.25, ease: 'none' }, top(3) + H * 0.35);
   tl.to(S, { tags: 0, duration: H * 0.2, ease: 'none' }, top(4) - H * 0.75);
 
   // 05 radar: reassemble, rise above the floor
-  into(4, { explode: 0, x: 0, rotY: Math.PI * 2 - 0.25, dist: isMobile() ? 1.7 : 1.55, camY: 4.2, lookY: 0.5, radar: 1 });
+  into(4, { explode: 0, x: 0, rotY: Math.PI * 2 - 0.25, dist: m(1.55, 1.6), camY: 4.2, lookY: m(0.5, 1.6), radar: 1 });
 
   // 06 care circle
-  into(5, { radar: 0, camY: 1.4, lookY: isMobile() ? 0.9 : 0.85, dist: isMobile() ? 1.8 : 1.5, rotY: Math.PI * 2 });
+  into(5, { radar: 0, camY: 1.4, lookY: 0.85, dist: m(1.5, 2.4), rotY: Math.PI * 2 });
   tl.to(S, { circle: 1, duration: H * 1.2, ease: 'power1.inOut' }, top(5) - H * 0.2);
 
   // 07 rest: back on the floor, light turns teal
-  into(6, { circle: 0, dist: 1.25, camY: 1.1, lookY: 0.9, rotY: Math.PI * 2 - 0.42, x: 0, teal: 1, hairline: 1, spin: 0.3 });
+  into(6, { circle: 0, dist: m(1.25, 1.43), camY: 1.1, lookY: m(0.9, 0.48), rotY: Math.PI * 2 - 0.42, x: 0, teal: 1, hairline: 1, spin: 0.3 });
   tl.to({}, { duration: 1 }, story.offsetHeight + document.getElementById('pilot').offsetHeight - H); // pad to max scroll
 
   master = tl;
@@ -428,18 +444,18 @@ function frame() {
   // radar rings sweep outward from the device
   rings.forEach((r, i) => {
     const ph = (t * 0.25 + i / rings.length) % 1;
-    const s = 0.7 + ph * 3.2;
+    const s = 0.7 + ph * 2.7;
     r.scale.setScalar(s);
     r.position.x = rig.position.x;
-    r.material.opacity = S.radar * 0.55 * Math.sin(ph * Math.PI) * (1 - ph * 0.5);
+    r.material.opacity = S.radar * 0.4 * Math.sin(ph * Math.PI) * (1 - ph * 0.5);
   });
   if (S.radar > 0.01) drawBreath(t);
 
   renderer.render(scene, camera);
 
   // DOM overlays that follow 3D
-  hotTags.forEach((h) => placeTag(h, h.at(), S.hot * S.intro, 0));
-  openTags.forEach((o) => placeTag(o, S.tags > 0 ? partCenter(o.part) : null, S.tags, isMobile() ? 20 : 120));
+  hotTags.forEach((h) => placeTag(h, h.at(), isMobile() ? 0 : S.hot * S.intro, 0));
+  placeOpenTags(S.tags);
   const bar = toScreen(partCenter('lightBar') || localPoint(0, 1.75, 0));
   hairline.style.setProperty('--hl-y', `${bar.y}px`);
   hairline.style.setProperty('--hl-k', S.hairline * S.intro);
