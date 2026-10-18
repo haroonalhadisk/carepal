@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=720, height=1280" />
+    <title>CarePal — screen idle loop</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        src: url("fonts/Inter-400.woff2") format("woff2");
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("fonts/Inter-500.woff2") format("woff2");
+        font-weight: 500;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("fonts/Inter-600.woff2") format("woff2");
+        font-weight: 600;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #cfe4f7;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(180deg, #cfe4f7 0%, #d9e9f8 55%, #e3eef9 100%);
+      }
+      .screen {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* Status bar */
+      .status {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 84px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 46px;
+        box-sizing: border-box;
+        color: #1d2733;
+      }
+      .status .time {
+        font-weight: 600;
+        font-size: 25px;
+        letter-spacing: -0.2px;
+      }
+      .status .icons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      /* Orb stage */
+      .stage {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 430px;
+        height: 340px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .ripple {
+        position: absolute;
+        width: 290px;
+        height: 290px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-sizing: border-box;
+        opacity: 0;
+      }
+      .shadow {
+        position: absolute;
+        width: 230px;
+        height: 40px;
+        top: 318px;
+        left: 50%;
+        margin-left: -115px;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(70, 120, 180, 0.18), rgba(70, 120, 180, 0));
+      }
+      .orb {
+        position: relative;
+        width: 290px;
+        height: 290px;
+        border-radius: 50%;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 34% 28%, #e4f1ff 0%, #b9d8fa 26%, #8dbdf1 52%, #6aa4e8 78%, #5a95df 100%);
+        box-shadow:
+          0 18px 40px rgba(60, 110, 180, 0.18),
+          inset 0 -14px 30px rgba(50, 100, 190, 0.22);
+      }
+      .orb .swirl {
+        position: absolute;
+        inset: -30%;
+        border-radius: 50%;
+      }
+      .orb .swirl-a {
+        background: conic-gradient(
+          from 0deg,
+          rgba(255, 255, 255, 0) 0deg,
+          rgba(255, 255, 255, 0.55) 40deg,
+          rgba(255, 255, 255, 0) 110deg,
+          rgba(255, 255, 255, 0) 180deg,
+          rgba(255, 255, 255, 0.4) 225deg,
+          rgba(255, 255, 255, 0) 290deg
+        );
+        filter: blur(22px);
+        mix-blend-mode: soft-light;
+      }
+      .orb .swirl-b {
+        background: conic-gradient(
+          from 90deg,
+          rgba(120, 175, 245, 0) 0deg,
+          rgba(150, 140, 240, 0.28) 70deg,
+          rgba(120, 175, 245, 0) 150deg,
+          rgba(120, 175, 245, 0) 360deg
+        );
+        filter: blur(26px);
+      }
+      .orb .streak {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 360px;
+        height: 70px;
+        margin: -35px 0 0 -180px;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+        filter: blur(10px);
+      }
+      .orb .gloss {
+        position: absolute;
+        left: 17%;
+        top: 9%;
+        width: 44%;
+        height: 30%;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+        transform: rotate(-24deg);
+      }
+      .orb .rim {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: radial-gradient(circle at 62% 88%, rgba(210, 235, 255, 0.55) 0%, rgba(210, 235, 255, 0) 32%);
+      }
+
+      .label {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 816px;
+        text-align: center;
+        font-weight: 400;
+        font-size: 30px;
+        letter-spacing: 0.3px;
+        color: #66809e;
+      }
+
+      /* Bottom controls */
+      .controls {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 1094px;
+        display: flex;
+        justify-content: center;
+        gap: 46px;
+      }
+      .btn {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(236, 244, 252, 0.42));
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        box-shadow: 0 6px 16px rgba(70, 110, 160, 0.1);
+        box-sizing: border-box;
+      }
+      .home {
+        position: absolute;
+        left: 50%;
+        top: 1238px;
+        width: 250px;
+        margin-left: -125px;
+        height: 8px;
+        border-radius: 4px;
+        background: rgba(29, 39, 51, 0.82);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="screen-idle"
+      data-start="0"
+      data-width="720"
+      data-height="1280"
+      data-duration="8"
+    >
+      <div id="screen" class="screen clip" data-start="0" data-duration="8" data-track-index="0">
+        <div class="status">
+          <div class="time">9:41</div>
+          <div class="icons">
+            <svg width="30" height="20" viewBox="0 0 30 20" aria-hidden="true">
+              <rect x="0" y="13" width="5" height="7" rx="1.2" fill="#1d2733" />
+              <rect x="8" y="9" width="5" height="11" rx="1.2" fill="#1d2733" />
+              <rect x="16" y="5" width="5" height="15" rx="1.2" fill="#1d2733" />
+              <rect x="24" y="0" width="5" height="20" rx="1.2" fill="#1d2733" />
+            </svg>
+            <svg width="44" height="22" viewBox="0 0 44 22" aria-hidden="true">
+              <rect x="1" y="1" width="37" height="20" rx="6" fill="none" stroke="#1d2733" stroke-opacity="0.4" stroke-width="2" />
+              <rect x="4" y="4" width="28" height="14" rx="3.5" fill="#1d2733" />
+              <path d="M41 8 v6 c1.6 -0.6 2.4 -1.6 2.4 -3 s-0.8 -2.4 -2.4 -3z" fill="#1d2733" fill-opacity="0.45" />
+            </svg>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="shadow" id="shadow"></div>
+          <div class="ripple" id="ripple"></div>
+          <div class="orb" id="orb">
+            <div class="swirl swirl-b" id="swirlB" data-layout-allow-overflow></div>
+            <div class="swirl swirl-a" id="swirlA" data-layout-allow-overflow></div>
+            <div class="streak" id="streak" data-layout-allow-overflow></div>
+            <div class="rim"></div>
+            <div class="gloss"></div>
+          </div>
+        </div>
+
+        <div class="label" id="label">listening…</div>
+
+        <div class="controls">
+          <div class="btn">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2f3d4e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5.5 11a6.5 6.5 0 0 0 13 0" />
+              <path d="M12 17.5V21" />
+            </svg>
+          </div>
+          <div class="btn">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2f3d4e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="6.5" width="12.5" height="11" rx="2.5" fill="#2f3d4e" />
+              <path d="M15.5 10.5l5-3v9l-5-3z" fill="#2f3d4e" />
+            </svg>
+          </div>
+          <div class="btn">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2f3d4e" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </div>
+        </div>
+
+        <div class="home"></div>
+      </div>
+    </div>
+
+    <script>
+      // Everything is a pure function of t, periodic in 8 s (2 breaths of 4 s = 15 bpm),
+      // so frame 0 and frame at t=8 are identical and the clip loops seamlessly.
+      const LOOP = 8;
+      const BREATH = 4;
+      const TAU = Math.PI * 2;
+
+      const orb = document.getElementById("orb");
+      const ripple = document.getElementById("ripple");
+      const shadow = document.getElementById("shadow");
+      const swirlA = document.getElementById("swirlA");
+      const swirlB = document.getElementById("swirlB");
+      const streak = document.getElementById("streak");
+      const label = document.getElementById("label");
+
+      // Ripple: one thin ring per breath, released just after the peak of the inhale.
+      const RIPPLE_START = 1.7; // seconds into each breath
+      const RIPPLE_LIFE = 3.0;
+      const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+
+      function render(t) {
+        const b = (t % BREATH) / BREATH; // breath phase 0..1
+        const inhale = 0.5 - 0.5 * Math.cos(TAU * b); // 0 -> 1 -> 0
+        const s = 1 + 0.06 * inhale;
+
+        gsap.set(orb, { scale: s });
+        gsap.set(shadow, { scaleX: 1 + 0.05 * inhale, opacity: 0.85 + 0.15 * inhale });
+
+        // Internal light: two layers turning in opposite directions, one full turn per loop.
+        const turn = (t / LOOP) * 360;
+        gsap.set(swirlA, { rotation: turn });
+        gsap.set(swirlB, { rotation: -turn + 40 });
+        gsap.set(streak, {
+          rotation: -32 + 10 * Math.sin((TAU * t) / LOOP),
+          x: 10 * Math.cos((TAU * t) / LOOP),
+          y: 8 * Math.sin((TAU * t) / BREATH),
+          opacity: 0.75 + 0.25 * inhale,
+        });
+
+        label.style.opacity = (0.86 + 0.14 * inhale).toFixed(4);
+
+        const age = (((t % BREATH) - RIPPLE_START + BREATH) % BREATH);
+        if (age < RIPPLE_LIFE) {
+          const p = age / RIPPLE_LIFE;
+          const e = easeOut(p);
+          gsap.set(ripple, {
+            scale: 1.06 + 0.62 * e,
+            opacity: 0.55 * (1 - p) * (1 - p),
+          });
+        } else {
+          gsap.set(ripple, { opacity: 0 });
+        }
+      }
+
+      const state = { t: 0 };
+      const tl = gsap.timeline({ paused: true });
+      tl.to(state, {
+        t: LOOP,
+        duration: LOOP,
+        ease: "none",
+        onUpdate: () => render(state.t),
+      });
+      render(0);
+      window.__timelines["screen-idle"] = tl;
+    </script>
+  </body>
+</html>
