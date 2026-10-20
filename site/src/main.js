@@ -1,3 +1,4 @@
+import { CAPTURE, clock } from './capture.js'; // first: patches clocks in capture mode
 import './styles/main.css';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -9,12 +10,12 @@ import { createScreen, SCRIPT } from './screen.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = !CAPTURE && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMobile = () => innerWidth <= 860;
 
 /* ------------------------------------------------------------------ smooth scroll */
 let lenis = null;
-if (!reduceMotion) {
+if (!reduceMotion && !CAPTURE) {
   lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 0.9 });
   lenis.on('scroll', ScrollTrigger.update);
   gsap.ticker.add((t) => lenis.raf(t * 1000));
@@ -106,15 +107,20 @@ rig.add(device.group);
 scene.add(rig);
 
 let videoTex = null;
-const video = Object.assign(document.createElement('video'), { muted: true, loop: true, playsInline: true, autoplay: true, crossOrigin: 'anonymous' });
-video.innerHTML = '<source src="/media/screen-idle.webm" type="video/webm"><source src="/media/screen-idle.mp4" type="video/mp4">';
-video.addEventListener('canplay', () => {
+const media = import.meta.env.BASE_URL + 'media/';
+const video = Object.assign(document.createElement('video'), { muted: true, loop: true, playsInline: true, autoplay: !CAPTURE, crossOrigin: 'anonymous', preload: 'auto' });
+if (!CAPTURE) video.innerHTML = `<source src="${media}screen-idle.webm" type="video/webm"><source src="${media}screen-idle.mp4" type="video/mp4">`;
+const videoReady = new Promise((resolve) => video.addEventListener('canplay', () => {
   if (videoTex) return;
-  videoTex = new THREE.VideoTexture(video);
+  videoTex = new THREE.VideoTexture(video); // capture mode seeks it and flags each update itself
   videoTex.colorSpace = THREE.SRGBColorSpace;
-  video.play().catch(() => {});
-}, { once: true });
-video.load();
+  if (CAPTURE) videoTex.needsUpdate = true;
+  else video.play().catch(() => {});
+  resolve();
+}, { once: true }));
+// capture mode loads the clip as a blob so it is seekable whatever serves the page
+if (CAPTURE) fetch(`${media}screen-idle.webm`).then((r) => r.blob()).then((b) => { video.src = URL.createObjectURL(b); video.load(); });
+else video.load();
 
 /* ------------------------------------------------------------------ state */
 // Everything the scroll story animates lives here; the render loop reads it.
@@ -355,7 +361,7 @@ function buildStory() {
     const target = document.querySelector(a.getAttribute('href'));
     if (target) ScrollTrigger.create({ trigger: target, start: 'top 50%', end: 'bottom 50%', toggleClass: { targets: a, className: 'on' } });
   });
-  ScrollTrigger.create({ animation: tl, start: 0, end: 'max', scrub: reduceMotion ? true : 0.8 });
+  ScrollTrigger.create({ animation: tl, start: 0, end: 'max', scrub: reduceMotion || CAPTURE ? true : 0.8 });
 
   // section copy reveals
   scenes.forEach((s, i) => {
@@ -464,11 +470,44 @@ function frame() {
 }
 
 /* ------------------------------------------------------------------ go */
+let started;
+const ready = new Promise((r) => (started = r));
 const start = () => {
   if (built) return;
   rebuild();
   intro();
   gsap.ticker.add(frame);
+  started();
 };
 document.fonts.ready.then(start);
 setTimeout(start, 2500);
+
+/* ------------------------------------------------------------------ capture */
+// The video renderer drives the page: scroll to y, then step the clock to t.
+if (CAPTURE) {
+  const seekVideo = (s) => new Promise((resolve) => {
+    if (!videoTex || !video.duration) return resolve();
+    const target = s % video.duration;
+    if (Math.abs(video.currentTime - target) < 1e-3) return resolve();
+    video.addEventListener('seeked', resolve, { once: true });
+    video.currentTime = target;
+  });
+  window.__carepal = {
+    ready: Promise.all([ready, videoReady, document.fonts.ready]),
+    // scroll offsets the story is built on, in px
+    marks: () => ({
+      vh: vh(),
+      max: ScrollTrigger.maxScroll(window),
+      scenes: scenes.map((s) => ({ id: s.id || s.className, top: s.offsetTop, len: s.offsetHeight })),
+    }),
+    state: () => ({ video: { readyState: video.readyState, duration: video.duration, time: video.currentTime, error: video.error?.code ?? null, src: video.currentSrc }, texture: !!videoTex, screenMode }),
+    async renderAt(t, y) {
+      window.scrollTo(0, y);
+      ScrollTrigger.update();
+      await seekVideo(t);
+      if (videoTex) videoTex.needsUpdate = true;
+      if (t * 1000 > clock.now) clock.advanceTo(t * 1000, 1000 / 30);
+      else gsap.ticker.tick(); // same instant (or earlier): redraw in place
+    },
+  };
+}

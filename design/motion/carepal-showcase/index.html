@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>CarePal — website showcase</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f8f7f4;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #f8f7f4;
+      }
+      #site {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        border: 0;
+        display: block;
+      }
+      #fade {
+        position: absolute;
+        inset: 0;
+        background: #f8f7f4;
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      The real CarePal site (built into ./app by build.sh) runs inside the iframe
+      in capture mode: its clock is virtual and its scroll is set from here, so
+      every frame is rendered exactly once at an exact time and scroll offset.
+    -->
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="62"
+    >
+      <iframe id="site" src="app/index.html?capture" scrolling="no"></iframe>
+      <div id="fade"></div>
+    </div>
+
+    <script>
+      const iframe = document.getElementById("site");
+
+      // When the camera should be where. y() reads the site's own scroll marks
+      // (scene tops/lengths in px), so the path follows the story's layout.
+      // Times are seconds; near-equal neighbours are slow drifts over a scene.
+      const SHOTS = [
+        [0.0, (m) => 0], //                    hero: intro + idle device
+        [3.6, (m) => 0],
+        [6.6, (m) => m.top(1) + 0.08 * m.vh], // night mode
+        [10.6, (m) => m.top(1) + 0.8 * m.vh],
+        [13.6, (m) => m.top(2) + 0.05 * m.vh], // conversation + telemetry
+        [29.6, (m) => m.top(2) + 2.05 * m.vh],
+        [33.6, (m) => m.top(3) + 0.65 * m.vh], // exploded Model 01
+        [37.1, (m) => m.top(3) + 1.2 * m.vh],
+        [40.6, (m) => m.top(4) + 0.1 * m.vh], // contactless radar
+        [44.1, (m) => m.top(4) + 0.9 * m.vh],
+        [47.6, (m) => m.top(5) + 0.95 * m.vh], // care circle
+        [50.6, (m) => m.top(5) + 1.4 * m.vh],
+        [53.6, (m) => m.top(6) + 0.08 * m.vh], // hospitals + count-ups
+        [56.1, (m) => m.top(6) + 0.4 * m.vh],
+        [59.1, (m) => m.max], //               pilot CTA
+        [62.0, (m) => m.max],
+      ];
+
+      // Monotone cubic (Fritsch–Carlson) through the shots: no overshoot,
+      // continuous velocity, and it settles to rest on flat stretches.
+      function monotone(xs, ys) {
+        const n = xs.length;
+        const d = [];
+        for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]));
+        const m = [0];
+        for (let i = 1; i < n - 1; i++) m.push(d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2);
+        m.push(0);
+        for (let i = 0; i < n - 1; i++) {
+          if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; }
+          const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
+          if (s > 9) { const k = 3 / Math.sqrt(s); m[i] = k * a * d[i]; m[i + 1] = k * b * d[i]; }
+        }
+        return (x) => {
+          if (x <= xs[0]) return ys[0];
+          if (x >= xs[n - 1]) return ys[n - 1];
+          let i = 0;
+          while (x > xs[i + 1]) i++;
+          const h = xs[i + 1] - xs[i], t = (x - xs[i]) / h, t2 = t * t, t3 = t2 * t;
+          return (2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * h * m[i] +
+            (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * h * m[i + 1];
+        };
+      }
+
+      let scrollAt = () => 0;
+      let api = null;
+
+      const build = new Promise((resolve, reject) => {
+        const boot = () => {
+          const w = iframe.contentWindow;
+          if (!w || !w.__carepal) return setTimeout(boot, 50);
+          w.__carepal.ready.then(() => {
+            api = w.__carepal;
+            const raw = api.marks();
+            const m = { vh: raw.vh, max: raw.max, top: (i) => raw.scenes[i].top };
+            scrollAt = monotone(SHOTS.map((s) => s[0]), SHOTS.map((s) => Math.min(raw.max, s[1](m))));
+            return api.renderAt(0, 0);
+          }).then(resolve, reject);
+        };
+        boot();
+      });
+      window.__hf = window.__hf || {};
+      window.__hf.buildReady = window.__hf.buildReady || {};
+      window.__hf.buildReady["carepal-site"] = build;
+
+      // HyperFrames publishes every frame's time here; hold the frame until
+      // the site has scrolled, seeked its screen video and drawn.
+      window.addEventListener("hf-seek", (e) => {
+        const t = e.detail.time;
+        e.detail.waitUntil(build.then(() => api.renderAt(t, Math.round(scrollAt(t) * 100) / 100)));
+      });
+
+      const tl = gsap.timeline({ paused: true });
+      tl.to("#fade", { opacity: 1, duration: 0.8, ease: "power1.in" }, 61.2);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
